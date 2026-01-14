@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Excel导入工具</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Microsoft YaHei", "PingFang SC", -apple-system,
+          BlinkMacSystemFont, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        height: 100vh;
+        padding: 0;
+        color: #333;
+        overflow: hidden;
+      }
+
+      .app-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        overflow: visible;
+        height: 100vh;
+      }
+
+      .header {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        color: white;
+        padding: 20px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 28px;
+        font-weight: 300;
+        margin-bottom: 5px;
+      }
+
+      .header p {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+
+      .main-content {
+        display: flex;
+        height: calc(100vh - 120px);
+      }
+
+      .left-panel {
+        flex: 1;
+        padding: 25px;
+        border-right: 1px solid #e1e5e9;
+        background: #fafbfc;
+        display: flex;
+        flex-direction: column;
+        min-width: 400px;
+        min-height: 700px;
+      }
+
+      .right-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: white;
+        min-width: 400px;
+        min-height: 700px;
+      }
+
+      .config-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .logs-section {
+        flex: 1;
+        padding: 25px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+      }
+
+      .section-title::before {
+        content: "";
+        width: 4px;
+        height: 18px;
+        background: #667eea;
+        margin-right: 10px;
+        border-radius: 2px;
+      }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex: 1;
+        align-items: start;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .form-group.full-width {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #555;
+        margin-bottom: 6px;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 2px solid #e1e5e9;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: white;
+        font-family: inherit;
+        box-sizing: border-box;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+      }
+
+      /* Checkbox 特殊样式 */
+      input[type="checkbox"] {
+        width: auto;
+        min-width: 18px;
+        height: 18px;
+        padding: 0;
+        margin: 0;
+        margin-right: 8px;
+        cursor: pointer;
+        -webkit-appearance: checkbox;
+        -moz-appearance: checkbox;
+        appearance: checkbox;
+        border: 2px solid #667eea;
+        border-radius: 4px;
+        flex-shrink: 0;
+      }
+
+      input[type="checkbox"]:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+      }
+
+      input[type="checkbox"]:focus {
+        outline: 2px solid rgba(102, 126, 234, 0.3);
+        outline-offset: 2px;
+      }
+
+      select {
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        background-size: 16px;
+        padding-right: 40px;
+        cursor: pointer;
+      }
+
+      /* 确保所有表单控件高度一致 */
+      input,
+      select {
+        height: 44px;
+        line-height: 1.2;
+        display: block;
+      }
+
+      /* 特殊处理textarea */
+      textarea {
+        height: auto;
+        line-height: 1.4;
+        display: block;
+      }
+
+      /* 统一输入框的垂直对齐 */
+      .form-group {
+        position: relative;
+      }
+
+      .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        color: #555;
+        font-size: 13px;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 60px;
+      }
+
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+
+      .file-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .file-input-wrapper input[type="file"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .file-input-display {
+        flex: 1;
+        padding: 10px 12px;
+        border: 2px dashed #d1d5db;
+        border-radius: 6px;
+        background: #f9fafb;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        overflow: hidden; /* 必须：防止溢出 */
+        white-space: nowrap;
+        min-width: 0; /* 必须：允许 flex 项目收缩 */
+      }
+
+      .file-input-display:hover {
+        border-color: #667eea;
+        background: #f0f4ff;
+      }
+
+      .file-input-display::before {
+        content: "📁";
+        margin-right: 8px;
+      }
+
+      .file-name {
+        margin-left: 8px;
+        color: #333;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        direction: rtl; /* 路径过长时，保留右侧文件名，省略左侧路径 */
+        text-align: left;
+        white-space: nowrap;
+        flex: 1;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+      }
+
+      button {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        flex: 1;
+      }
+
+      .btn-primary {
+        background: linear-gradient(45deg, #667eea, #764ba2);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+      }
+
+      .btn-secondary {
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+      }
+
+      .btn-secondary:hover {
+        background: #e5e7eb;
+      }
+
+      .logs-container {
+        flex: 1;
+        background: #1f2937;
+        border-radius: 6px;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 400px;
+      }
+
+      .logs-header {
+        padding: 12px 16px;
+        background: #374151;
+        color: #e5e7eb;
+        font-size: 13px;
+        font-weight: 600;
+        border-bottom: 1px solid #4b5563;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+      }
+
+      .connection-status.ready {
+        color: #10b981;
+      }
+
+      .connection-status.connecting {
+        color: #f59e0b;
+      }
+
+      .connection-status.error {
+        color: #ef4444;
+      }
+
+      .logs-content {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        font-family: "Consolas", "Monaco", "Courier New", monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #e5e7eb;
+      }
+
+      /* 模态对话框样式 */
+      .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        z-index: 1000;
+        animation: fadeIn 0.3s ease;
+      }
+
+      .modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal-content {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        max-width: 800px;
+        width: 90%;
+        max-height: 80vh;
+        overflow: hidden;
+        animation: slideIn 0.3s ease;
+      }
+
+      .modal-header {
+        padding: 20px 24px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-title {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s ease;
+      }
+
+      .modal-close:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .modal-body {
+        padding: 24px;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      .comparison-modal-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateY(-50px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .log-entry {
+        margin-bottom: 4px;
+        padding: 2px 0;
+      }
+
+      .log-info {
+        color: #3b82f6;
+      }
+
+      .log-success {
+        color: #10b981;
+      }
+
+      .log-error {
+        color: #ef4444;
+      }
+
+      .log-warning {
+        color: #f59e0b;
+      }
+
+      .progress-container {
+        margin-top: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border-left: 4px solid #667eea;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 8px;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981, #3b82f6);
+        width: 0%;
+        transition: width 0.3s ease;
+        border-radius: 4px;
+      }
+
+      .progress-text {
+        font-size: 12px;
+        color: #6b7280;
+        text-align: center;
+      }
+
+      .status-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 8px;
+      }
+
+      .status-ready {
+        background: #10b981;
+      }
+
+      .status-busy {
+        background: #f59e0b;
+        animation: pulse 2s infinite;
+      }
+
+      .status-error {
+        background: #ef4444;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      /* 字段对比样式 */
+      .comparison-section {
+        padding: 25px;
+        border-bottom: 1px solid #e1e5e9;
+        flex-shrink: 0;
+      }
+
+      .comparison-container {
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e1e5e9;
+        overflow: hidden;
+      }
+
+      .comparison-header {
+        padding: 16px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e1e5e9;
+      }
+
+      .comparison-summary {
+        font-size: 14px;
+        color: #374151;
+        line-height: 1.5;
+      }
+
+      .comparison-summary .match-count {
+        color: #10b981;
+        font-weight: 600;
+      }
+
+      .comparison-summary .mismatch-count {
+        color: #f59e0b;
+        font-weight: 600;
+      }
+
+      .comparison-content {
+        padding: 16px;
+      }
+
+      .field-comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+
+      .field-list h4 {
+        margin: 0 0 12px 0;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+      }
+
+      .field-list h4::before {
+        margin-right: 8px;
+      }
+
+      .field-items {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .field-item {
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        border: 1px solid #e5e7eb;
+        background: #f9fafb;
+        display: flex;
+        align-items: center;
+      }
+
+      .field-item::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 8px;
+        flex-shrink: 0;
+      }
+
+      .field-matched {
+        background: #d1fae5;
+        border-color: #10b981;
+        color: #065f46;
+      }
+
+      .field-matched::before {
+        background: #10b981;
+      }
+
+      .field-missing {
+        background: #fef3c7;
+        border-color: #f59e0b;
+        color: #92400e;
+      }
+
+      .field-missing::before {
+        background: #f59e0b;
+      }
+
+      .field-extra {
+        background: #fee2e2;
+        border-color: #ef4444;
+        color: #991b1b;
+      }
+
+      .field-extra::before {
+        background: #ef4444;
+      }
+
+      .field-normal {
+        background: #f3f4f6;
+        color: #374151;
+      }
+
+      .field-normal::before {
+        background: #9ca3af;
+      }
+
+      .logs-section {
+        flex: 1;
+        padding: 25px;
+        display: flex;
+        flex-direction: column;
+        min-height: 300px;
+      }
+
+      @media (max-width: 900px) {
+        .main-content {
+          flex-direction: column;
+          height: auto;
+        }
+
+        .left-panel,
+        .right-panel {
+          border-right: none;
+          border-bottom: 1px solid #e1e5e9;
+          min-width: unset;
+        }
+
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .app-container {
+          height: 100vh;
+        }
+
+        .main-content {
+          height: calc(100vh - 120px);
+        }
+
+        .field-comparison {
+          grid-template-columns: 1fr;
+          gap: 15px;
+        }
+
+        .comparison-section {
+          padding: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <div class="header">
+        <h1>📊 Excel导入工具</h1>
+        <p>高效、安全地将Excel/CSV数据导入到数据库中</p>
+      </div>
+
+      <div class="main-content">
+        <div class="left-panel">
+          <div class="config-section">
+            <div class="section-title">📋 配置参数</div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="dbType">数据库类型</label>
+                <select id="dbType" onchange="onDbTypeChange()">
+                  <option value="mysql">MySQL</option>
+                  <option value="oracle">Oracle</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="host">主机地址</label>
+                <input
+                  type="text"
+                  id="host"
+                  placeholder="localhost"
+                  value="localhost"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="port">端口</label>
+                <input type="text" id="port" placeholder="3306" value="3306" />
+              </div>
+
+              <!-- Oracle 连接方式选择 -->
+              <div
+                class="form-group"
+                id="oracleConnectionType"
+                style="display: none"
+              >
+                <label for="connectionType">连接方式</label>
+                <select id="connectionType" onchange="onConnectionTypeChange()">
+                  <option value="service">服务名 (Service Name)</option>
+                  <option value="sid">SID</option>
+                  <option value="tns">TNS连接串</option>
+                </select>
+              </div>
+
+              <!-- MySQL 数据库名 -->
+              <div class="form-group" id="mysqlDatabase">
+                <label for="database">数据库名</label>
+                <input type="text" id="database" placeholder="database_name" />
+              </div>
+
+              <!-- Oracle 服务名/SID/TNS -->
+              <div class="form-group" id="oracleService" style="display: none">
+                <label for="serviceName">服务名</label>
+                <input type="text" id="serviceName" placeholder="ORCL" />
+              </div>
+
+              <div class="form-group">
+                <label for="username">用户名</label>
+                <input type="text" id="username" placeholder="root" />
+              </div>
+
+              <div class="form-group">
+                <label for="password">密码</label>
+                <input type="password" id="password" placeholder="password" />
+              </div>
+
+              <!-- Oracle TNS 连接串 -->
+              <div
+                class="form-group full-width"
+                id="oracleTns"
+                style="display: none"
+              >
+                <label for="tnsConnection">TNS连接串</label>
+                <textarea
+                  id="tnsConnection"
+                  placeholder="(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521))(CONNECT_DATA=(SERVICE_NAME=ORCL)))"
+                  rows="3"
+                ></textarea>
+              </div>
+
+              <div class="form-group full-width">
+                <label for="tableName">目标表名</label>
+                <input type="text" id="tableName" placeholder="users" />
+              </div>
+
+              <div class="form-group full-width">
+                <label for="truncateCheckbox" style="display: flex; align-items: center; cursor: pointer; margin-bottom: 0; padding: 8px 0;">
+                  <input type="checkbox" id="truncateCheckbox" checked />
+                  <span style="font-weight: normal; color: #374151; user-select: none;">导入时截断字符长度（防止超长字段）</span>
+                </label>
+              </div>
+              
+              <div class="form-group full-width">
+                <label for="excelFile">选择文件</label>
+                <div class="file-input-wrapper">
+                  <!-- 隐藏的文件输入，仅作为浏览器模式的备用方案 -->
+                  <input
+                    type="file"
+                    id="excelFile"
+                    accept=".xlsx,.xls,.csv"
+                    style="display: none"
+                  />
+                  <div class="file-input-display" onclick="selectExcelFile()">
+                    选择Excel或CSV文件
+                    <span id="fileName" class="file-name"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="button-group">
+              <button class="btn-secondary" onclick="testConnection()">
+                🔍 测试连接
+              </button>
+              <button class="btn-secondary" onclick="compareFields()">
+                📊 字段对比
+              </button>
+              <button class="btn-secondary" onclick="saveConfig()">
+                💾 保存配置
+              </button>
+              <button class="btn-primary" onclick="importExcel()">
+                🚀 开始导入
+              </button>
+            </div>
+
+            <div
+              class="progress-container"
+              id="progressContainer"
+              style="display: none"
+            >
+              <div class="progress-text" id="progressText">准备导入...</div>
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="right-panel">
+          <div class="logs-section">
+            <div class="section-title">📝 操作日志</div>
+            <div class="logs-container">
+              <div class="logs-header">
+                <div>
+                  <span class="status-indicator status-ready"></span>
+                  系统状态
+                </div>
+                <div class="connection-status ready" id="connectionStatus">
+                  <span class="status-indicator status-ready"></span>
+                  后端连接正常
+                </div>
+              </div>
+              <div class="logs-content" id="logsContent">
+                <div class="log-entry log-info">
+                  [INFO] 应用已启动，等待用户操作...
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 字段对比模态对话框 -->
+    <div id="fieldComparisonModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">📊 字段对比结果</h2>
+          <button class="modal-close" onclick="closeFieldComparisonModal()">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="comparison-summary" id="modalComparisonSummary"></div>
+          <div class="comparison-modal-content">
+            <div class="field-list">
+              <h4>📄 Excel字段</h4>
+              <div id="modalExcelFields" class="field-items"></div>
+            </div>
+            <div class="field-list">
+              <h4>🗄️ 数据库字段</h4>
+              <div id="modalDbFields" class="field-items"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/wails/ipc.js"></script>
+    <script>
+      let currentStatus = "ready";
+      let backendConnected = false;
+
+      function updateStatus(status) {
+        currentStatus = status;
+        const indicator = document.querySelector(".status-indicator");
+        const header = document.querySelector(".logs-header");
+        const statusText = header.querySelector("span:last-child");
+
+        indicator.className = "status-indicator status-" + status;
+      }
+
+      function updateConnectionStatus(status, message) {
+        const connectionStatus = document.getElementById("connectionStatus");
+        connectionStatus.className = "connection-status " + status;
+        connectionStatus.innerHTML = `
+                <span class="status-indicator status-${status}"></span>
+                ${message}
+            `;
+        backendConnected = status === "ready";
+      }
+
+      function addLog(message, type = "info") {
+        const logsContent = document.getElementById("logsContent");
+        const logEntry = document.createElement("div");
+        logEntry.className = `log-entry log-${type}`;
+        logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+        logsContent.appendChild(logEntry);
+        logsContent.scrollTop = logsContent.scrollHeight;
+      }
+
+      function updateProgress(percent, text) {
+        const container = document.getElementById("progressContainer");
+        const fill = document.getElementById("progressFill");
+        const textEl = document.getElementById("progressText");
+
+        container.style.display = "block";
+        fill.style.width = percent + "%";
+        textEl.textContent = text;
+      }
+
+      function resetProgress() {
+        const container = document.getElementById("progressContainer");
+        container.style.display = "none";
+        document.getElementById("progressFill").style.width = "0%";
+      }
+
+      // 数据库类型切换处理
+      function onDbTypeChange() {
+        const dbType = document.getElementById("dbType").value;
+        const portInput = document.getElementById("port");
+        const mysqlDatabase = document.getElementById("mysqlDatabase");
+        const oracleConnectionType = document.getElementById(
+          "oracleConnectionType"
+        );
+        const oracleService = document.getElementById("oracleService");
+        const oracleTns = document.getElementById("oracleTns");
+
+        if (dbType === "mysql") {
+          portInput.value = "3306";
+          portInput.placeholder = "3306";
+          mysqlDatabase.style.display = "block";
+          oracleConnectionType.style.display = "none";
+          oracleService.style.display = "none";
+          oracleTns.style.display = "none";
+          addLog("切换到MySQL数据库配置", "info");
+        } else if (dbType === "oracle") {
+          portInput.value = "1521";
+          portInput.placeholder = "1521";
+          mysqlDatabase.style.display = "none";
+          oracleConnectionType.style.display = "block";
+          onConnectionTypeChange(); // 重新设置Oracle字段
+          addLog("切换到Oracle数据库配置", "info");
+        }
+      }
+
+      // Oracle连接方式切换处理
+      function onConnectionTypeChange() {
+        const connectionType = document.getElementById("connectionType").value;
+        const oracleService = document.getElementById("oracleService");
+        const oracleTns = document.getElementById("oracleTns");
+
+        if (connectionType === "service" || connectionType === "sid") {
+          oracleService.style.display = "block";
+          oracleTns.style.display = "none";
+          const label = oracleService.querySelector("label");
+          label.textContent = connectionType === "service" ? "服务名" : "SID";
+          const input = oracleService.querySelector("input");
+          input.placeholder = connectionType === "service" ? "ORCL" : "ORCL";
+          input.id = connectionType === "service" ? "serviceName" : "sid";
+        } else if (connectionType === "tns") {
+          oracleService.style.display = "none";
+          oracleTns.style.display = "block";
+        }
+      }
+
+      // 当前选择的文件完整路径（供后端使用）
+      let currentFilePath = "";
+
+      // 使用 Wails 原生对话框选择文件（桌面应用场景）
+      async function selectExcelFile() {
+        // 在纯浏览器中没有 window.go，退回到隐藏的 <input type="file">
+        if (
+          typeof window.go === "undefined" ||
+          !window.go.main ||
+          !window.go.main.App
+        ) {
+          const input = document.getElementById("excelFile");
+          input.click();
+          return;
+        }
+
+        try {
+          const path = await window.go.main.App.SelectExcelFile();
+          const fileNameEl = document.getElementById("fileName");
+          const tableNameInput = document.getElementById("tableName");
+
+          if (!path) {
+            addLog("未选择任何文件", "warning");
+            return;
+          }
+
+          currentFilePath = path;
+
+          // 显示完整路径
+          fileNameEl.textContent = `(${path})`;
+
+          // 自动设置表名（取文件名去掉扩展名）
+          const justName = path.split(/[\\/]/).pop() || path;
+          const fileNameWithoutExt = justName.replace(/\.[^/.]+$/, "");
+          tableNameInput.value = fileNameWithoutExt.toLowerCase();
+          addLog(`已选择文件: ${path}`, "info");
+        } catch (error) {
+          console.error("选择文件失败:", error);
+          addLog("选择文件失败: " + (error.message || error), "error");
+        }
+      }
+
+      // 浏览器模式降级方案：监听隐藏的 <input type="file">
+      document
+        .getElementById("excelFile")
+        .addEventListener("change", function (e) {
+          const file = e.target.files[0];
+          const fileNameEl = document.getElementById("fileName");
+          const tableNameInput = document.getElementById("tableName");
+
+          if (file) {
+            // 浏览器只能拿到文件名，后端无法直接通过浏览器访问本地文件
+            const fullPath = file.name;
+            currentFilePath = fullPath;
+
+            fileNameEl.textContent = `(${fullPath})`;
+
+            const fileNameWithoutExt = fullPath.replace(/\.[^/.]+$/, "");
+            if (!tableNameInput.value) {
+              tableNameInput.value = fileNameWithoutExt.toLowerCase();
+              addLog(
+                `已自动设置表名: ${fileNameWithoutExt.toLowerCase()}`,
+                "info"
+              );
+            }
+
+            addLog(`已选择文件(浏览器模式): ${fullPath}`, "info");
+          } else {
+            fileNameEl.textContent = "";
+            currentFilePath = "";
+          }
+        });
+
+      // 检查后端API是否可用（使用 Wails 生成的 window.go.main.App）
+      function isBackendReady() {
+        const hasIPC = typeof window.go !== "undefined";
+        const hasMain = window.go && window.go.main;
+        const hasApp = hasMain && window.go.main.App;
+        const ready = !!hasApp;
+
+        console.log("Backend ready check:", {
+          ready,
+          hasIPC,
+          hasMain,
+          hasApp,
+          go: window.go,
+          timestamp: new Date().toISOString(),
+        });
+
+        return ready;
+      }
+
+      // 等待后端连接
+      function waitForBackend(maxRetries = 30) {
+        return new Promise((resolve, reject) => {
+          let retries = 0;
+          const checkBackend = () => {
+            retries++;
+            if (isBackendReady()) {
+              console.log("Backend ready after", retries, "checks");
+              resolve();
+            } else if (retries >= maxRetries) {
+              reject(new Error("后端连接超时，请检查Wails应用是否正常运行"));
+            } else {
+              setTimeout(checkBackend, 100);
+            }
+          };
+          checkBackend();
+        });
+      }
+
+      // 页面加载时的初始化
+      window.addEventListener("load", function () {
+        addLog("界面初始化完成", "info");
+        updateConnectionStatus("ready", "等待操作");
+        onDbTypeChange(); // 初始化数据库类型
+      });
+
+      async function testConnection() {
+        const dbType = document.getElementById("dbType").value;
+        const host = document.getElementById("host").value;
+        const port = document.getElementById("port").value;
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        let connectionType = "";
+        let serviceName = "";
+        let tnsConnection = "";
+
+        // 验证必需字段
+        if (!username) {
+          addLog("错误: 请填写用户名", "error");
+          return;
+        }
+
+        if (dbType === "mysql") {
+          serviceName = document.getElementById("database").value;
+          if (!serviceName) {
+            addLog("错误: 请填写数据库名", "error");
+            return;
+          }
+        } else if (dbType === "oracle") {
+          connectionType = document.getElementById("connectionType").value;
+          if (connectionType === "tns") {
+            tnsConnection = document.getElementById("tnsConnection").value;
+            if (!tnsConnection.trim()) {
+              addLog("错误: 请填写TNS连接串", "error");
+              return;
+            }
+          } else {
+            serviceName =
+              document.getElementById("serviceName")?.value ||
+              document.getElementById("sid")?.value;
+            if (!serviceName) {
+              addLog(
+                `错误: 请填写${
+                  connectionType === "service" ? "服务名" : "SID"
+                }`,
+                "error"
+              );
+              return;
+            }
+          }
+        }
+
+        updateStatus("busy");
+        updateConnectionStatus("connecting", "连接数据库中...");
+        addLog("正在连接后端服务...", "info");
+
+        try {
+          // 先等待后端连接
+          await waitForBackend();
+
+          // 调用后端TestDatabaseConnection方法
+          const result = await window.go.main.App.TestDatabaseConnection(
+            dbType,
+            host,
+            port,
+            username,
+            password,
+            connectionType,
+            serviceName,
+            tnsConnection
+          );
+
+          addLog("数据库连接测试成功!", "success");
+          addLog(result, "info");
+          updateConnectionStatus("ready", "数据库连接成功");
+          updateStatus("ready");
+        } catch (error) {
+          console.error("Test connection error:", error);
+          const errorMsg = error.message || error.toString();
+          if (
+            errorMsg.includes("undefined is not an object") ||
+            errorMsg.includes("backend.App")
+          ) {
+            addLog("后端连接异常，请刷新页面重试", "error");
+            updateConnectionStatus("error", "后端连接失败");
+          } else {
+            addLog(`数据库连接测试失败: ${errorMsg}`, "error");
+            updateConnectionStatus("error", "数据库连接失败");
+          }
+          updateStatus("error");
+          setTimeout(() => {
+            updateStatus("ready");
+            updateConnectionStatus("ready", "等待操作");
+          }, 3000);
+        }
+      }
+
+      async function compareFields() {
+        // 检查后端是否可用
+        if (!isBackendReady()) {
+          addLog("错误: 后端连接未建立，请稍后重试", "error");
+          return;
+        }
+
+        const dbType = document.getElementById("dbType").value;
+        const host = document.getElementById("host").value;
+        const port = document.getElementById("port").value;
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        const tableName = document.getElementById("tableName").value;
+
+        // 获取连接参数
+        let connectionType = "";
+        let serviceName = "";
+        let tnsConnection = "";
+
+        if (dbType === "oracle") {
+          connectionType = document.getElementById("connectionType").value;
+          if (connectionType === "tns") {
+            tnsConnection = document.getElementById("tnsConnection").value;
+          } else {
+            serviceName =
+              document.getElementById("serviceName")?.value ||
+              document.getElementById("sid")?.value ||
+              "";
+          }
+        } else {
+          serviceName = document.getElementById("database").value;
+        }
+
+        if (!tableName  || !currentFilePath) {
+          addLog("错误: 请选择文件并填写表名", "error");
+          return;
+        }
+
+        updateStatus("busy");
+        updateConnectionStatus("connecting", "连接后端服务...");
+        addLog("开始字段对比...", "info");
+
+        try {
+          // 先等待后端连接
+          await waitForBackend();
+
+          // 获取Excel字段（使用完整路径）
+          const excelHeaders = await window.go.main.App.GetExcelHeaders(
+            currentFilePath
+          );
+
+          // 获取数据库字段
+          const dbColumns = await window.go.main.App.GetTableColumns(
+            dbType,
+            host,
+            port,
+            username,
+            password,
+            tableName,
+            connectionType,
+            serviceName,
+            tnsConnection
+          );
+
+          // 对比字段
+          const comparison = await window.go.main.App.CompareFields(
+            excelHeaders,
+            dbColumns
+          );
+
+          // 显示对比结果对话框
+          showFieldComparisonModal(comparison);
+
+          addLog("字段对比完成", "success");
+          updateConnectionStatus("ready", "对比完成");
+          updateStatus("ready");
+        } catch (error) {
+          console.error("Compare fields error:", error);
+          const errorMsg = error.message || error.toString();
+          if (
+            errorMsg.includes("undefined is not an object") ||
+            errorMsg.includes("backend.App")
+          ) {
+            addLog("后端连接异常，请刷新页面重试", "error");
+            updateConnectionStatus("error", "后端连接失败");
+          } else {
+            addLog(`字段对比失败: ${errorMsg}`, "error");
+            updateConnectionStatus("error", "对比失败");
+          }
+          updateStatus("error");
+          setTimeout(() => {
+            updateStatus("ready");
+            updateConnectionStatus("ready", "等待操作");
+          }, 3000);
+        }
+      }
+
+      function showFieldComparisonModal(comparison) {
+        const modal = document.getElementById("fieldComparisonModal");
+        const summary = document.getElementById("modalComparisonSummary");
+        const excelFields = document.getElementById("modalExcelFields");
+        const dbFields = document.getElementById("modalDbFields");
+
+        // 生成摘要信息
+        const matched = comparison.matched || [];
+        const missingInDb = comparison.missingInDb || [];
+        const extraInExcel = comparison.extraInExcel || [];
+
+        summary.innerHTML = `
+                <div style="margin-bottom: 16px;">
+                    <div style="display: inline-block; margin-right: 20px;">✅ 匹配字段: <span class="match-count">${matched.length}</span></div>
+                    <div style="display: inline-block; margin-right: 20px;">⚠️ 数据库缺失: <span class="mismatch-count">${missingInDb.length}</span></div>
+                    <div style="display: inline-block;">⚠️ Excel多余字段: <span class="mismatch-count">${extraInExcel.length}</span></div>
+                </div>
+            `;
+
+        // 显示Excel字段
+        excelFields.innerHTML = "";
+        const excelHeaders = comparison.excelHeaders || [];
+        excelHeaders.forEach((header) => {
+          const item = document.createElement("div");
+          item.className = "field-item";
+
+          const headerLower = header.toLowerCase().trim();
+          const isMatched = matched.includes(headerLower);
+          const isExtra = extraInExcel.includes(headerLower);
+
+          if (isMatched) {
+            item.classList.add("field-matched");
+          } else if (isExtra) {
+            item.classList.add("field-extra");
+          } else {
+            item.classList.add("field-normal");
+          }
+
+          item.textContent = header;
+          excelFields.appendChild(item);
+        });
+
+        // 显示数据库字段
+        dbFields.innerHTML = "";
+        const dbColumns = comparison.dbColumns || [];
+        dbColumns.forEach((column) => {
+          const item = document.createElement("div");
+          item.className = "field-item";
+
+          const colLower = column.toLowerCase().trim();
+          const isMatched = matched.includes(colLower);
+          const isMissing = missingInDb.includes(colLower);
+
+          if (isMatched) {
+            item.classList.add("field-matched");
+          } else if (isMissing) {
+            item.classList.add("field-missing");
+          } else {
+            item.classList.add("field-normal");
+          }
+
+          item.textContent = column;
+          dbFields.appendChild(item);
+        });
+
+        // 显示模态对话框
+        modal.classList.add("show");
+        addLog(
+          `对比完成: ${matched.length}个字段匹配, ${
+            missingInDb.length + extraInExcel.length
+          }个字段不匹配`,
+          "info"
+        );
+      }
+
+      function closeFieldComparisonModal() {
+        const modal = document.getElementById("fieldComparisonModal");
+        modal.classList.remove("show");
+      }
+
+      // 点击模态对话框外部关闭
+      document
+        .getElementById("fieldComparisonModal")
+        .addEventListener("click", function (e) {
+          if (e.target === this) {
+            closeFieldComparisonModal();
+          }
+        });
+
+      // ESC键关闭对话框
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          closeFieldComparisonModal();
+        }
+      });
+
+      // 保存配置到本地（调用后端写入文件）
+      async function saveConfig() {
+        if (!window.go || !window.go.main || !window.go.main.App) {
+          addLog("错误: 后端不可用，无法保存配置", "error");
+          return;
+        }
+
+        const cfg = {
+          dbType: document.getElementById("dbType").value,
+          host: document.getElementById("host").value,
+          port: document.getElementById("port").value,
+          database: document.getElementById("database").value,
+          username: document.getElementById("username").value,
+          password: document.getElementById("password").value,
+          tableName: document.getElementById("tableName").value,
+          connectionType: document.getElementById("connectionType")?.value || "",
+          serviceName: document.getElementById("serviceName")?.value || "",
+          tnsConnection: document.getElementById("tnsConnection")?.value || "",
+          truncateChars: document.getElementById("truncateCheckbox")?.checked ? "true" : "false",
+        };
+
+        try {
+          const msg = await window.go.main.App.SaveConfig(cfg);
+          addLog(msg, "success");
+        } catch (err) {
+          console.error("保存配置失败:", err);
+          addLog("保存配置失败: " + (err.message || err), "error");
+        }
+      }
+
+      // 读取配置并填充表单
+      async function loadConfig() {
+        if (!window.go || !window.go.main || !window.go.main.App) {
+          addLog("后端未就绪，暂不加载配置", "warning");
+          return;
+        }
+
+        try {
+          const cfg = await window.go.main.App.LoadConfig();
+          if (!cfg) return;
+
+          if (cfg.dbType) document.getElementById("dbType").value = cfg.dbType;
+          if (cfg.host) document.getElementById("host").value = cfg.host;
+          if (cfg.port) document.getElementById("port").value = cfg.port;
+          if (cfg.database) document.getElementById("database").value = cfg.database;
+          if (cfg.username) document.getElementById("username").value = cfg.username;
+          if (cfg.password) document.getElementById("password").value = cfg.password;
+          if (cfg.tableName) document.getElementById("tableName").value = cfg.tableName;
+
+          // 连接方式与 Oracle 相关字段
+          if (cfg.connectionType) {
+            document.getElementById("connectionType").value = cfg.connectionType;
+            onConnectionTypeChange();
+          }
+          if (cfg.serviceName && document.getElementById("serviceName"))
+            document.getElementById("serviceName").value = cfg.serviceName;
+          if (cfg.tnsConnection && document.getElementById("tnsConnection"))
+            document.getElementById("tnsConnection").value = cfg.tnsConnection;
+
+          // 截断选项
+          if (cfg.truncateChars && document.getElementById("truncateCheckbox")) {
+            document.getElementById("truncateCheckbox").checked = cfg.truncateChars === "true";
+          }
+
+          // 根据数据库类型切换 UI
+          onDbTypeChange();
+
+          addLog("配置已加载", "info");
+        } catch (err) {
+          console.error("加载配置失败:", err);
+          addLog("加载配置失败: " + (err.message || err), "error");
+        }
+      }
+
+      async function importExcel() {
+        const dbType = document.getElementById("dbType").value;
+        const host = document.getElementById("host").value;
+        const port = document.getElementById("port").value;
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+        const tableName = document.getElementById("tableName").value;
+
+        let connectionType = "";
+        let serviceName = "";
+        let tnsConnection = "";
+
+        // 验证必需字段
+        if (
+          !username ||
+          !tableName ||
+          !currentFilePath
+        ) {
+          addLog("错误: 请填写用户名、表名并选择文件", "error");
+          return;
+        }
+
+        if (dbType === "mysql") {
+          serviceName = document.getElementById("database").value;
+          if (!serviceName) {
+            addLog("错误: 请填写数据库名", "error");
+            return;
+          }
+        } else if (dbType === "oracle") {
+          connectionType = document.getElementById("connectionType").value;
+          if (connectionType === "tns") {
+            tnsConnection = document.getElementById("tnsConnection").value;
+            if (!tnsConnection.trim()) {
+              addLog("错误: 请填写TNS连接串", "error");
+              return;
+            }
+          } else {
+            serviceName =
+              document.getElementById("serviceName")?.value ||
+              document.getElementById("sid")?.value;
+            if (!serviceName) {
+              addLog(
+                `错误: 请填写${
+                  connectionType === "service" ? "服务名" : "SID"
+                }`,
+                "error"
+              );
+              return;
+            }
+          }
+        }
+
+        // 禁用导入按钮，防止重复点击
+        const importButton = document.querySelector('button[onclick="importExcel()"]');
+        if (importButton) {
+          importButton.disabled = true;
+          importButton.textContent = "🚀 导入中...";
+        }
+
+        updateStatus("busy");
+        updateConnectionStatus("connecting", "连接后端服务...");
+        addLog("正在连接后端服务...", "info");
+
+        try {
+          // 先等待后端连接
+          await waitForBackend();
+
+          // 获取截断字符选项
+          const truncateCheckbox = document.getElementById("truncateCheckbox");
+          const shouldTruncate = truncateCheckbox.checked ? "true" : "false";
+
+          // 调用后端ImportExcel方法（传入文件完整路径）
+          const result = await window.go.main.App.ImportExcel(
+            dbType,
+            host,
+            port,
+            username,
+            password,
+            tableName,
+            currentFilePath,
+            connectionType,
+            serviceName,
+            tnsConnection,
+            shouldTruncate
+          );
+
+          addLog("导入完成!", "success");
+          addLog(result, "info");
+          updateConnectionStatus("ready", "导入完成");
+          updateStatus("ready");
+        } catch (error) {
+          console.error("Import error:", error);
+          const errorMsg = error.message || error.toString();
+          if (
+            errorMsg.includes("undefined is not an object") ||
+            errorMsg.includes("backend.App")
+          ) {
+            addLog("后端连接异常，请刷新页面重试", "error");
+            updateConnectionStatus("error", "后端连接失败");
+          } else {
+            addLog(`导入失败: ${errorMsg}`, "error");
+            updateConnectionStatus("error", "导入失败");
+          }
+          updateStatus("error");
+          setTimeout(() => {
+            updateStatus("ready");
+            updateConnectionStatus("ready", "等待操作");
+          }, 3000);
+        } finally {
+          // 恢复导入按钮状态
+          if (importButton) {
+            importButton.disabled = false;
+            importButton.textContent = "🚀 开始导入";
+          }
+        }
+
+        setTimeout(() => resetProgress(), 2000);
+      }
+
+      // 页面加载完成
+      window.addEventListener("load", function () {
+        addLog("界面初始化完成", "success");
+        loadConfig();
+      });
+
+      // 错误处理
+      window.addEventListener("error", function (e) {
+        addLog(`JavaScript错误: ${e.message}`, "error");
+      });
+
+      // 键盘快捷键
+      document.addEventListener("keydown", function (e) {
+        if (e.ctrlKey || e.metaKey) {
+          switch (e.key) {
+            case "Enter":
+              e.preventDefault();
+              importExcel();
+              break;
+            case "t":
+              e.preventDefault();
+              testConnection();
+              break;
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,39 @@
+[0;92mWails CLI[0m [0;31mv2.10.2[0m
+
+[0;92mExecuting: go mod tidy[0m
+  • Generating bindings: Done.
+  • No Install command. Skipping.
+  • No Build command. Skipping.
+Building application for development...
+  • Generating bindings: Done.
+  • Compiling application: Done.
+  • Packaging application: Done.
+ WARNING  This darwin build contains the use of private APIs. This will not pass Apple's AppStore approval process. Please use it only as a test build for testing and debug purposes.
+
+[0;92mUsing DevServer URL: http://localhost:34115[0m
+[0;92mUsing reload debounce setting of 100 milliseconds[0m
+[0;92mWatching (sub)/directory: /Users/zcy/Documents/csv2O[0m
+INF | Serving assets from disk: /Users/zcy/Documents/csv2O/frontend/dist
+ERR | listen tcp 127.0.0.1:34115: bind: address already in use
+[0;92m
+
+To develop in the browser and call your bound Go methods from Javascript, navigate to: http://localhost:34115[0m
+[0;92mAdded new directory to watcher: /Users/zcy/Documents/csv2O/frontend/wailsjs/runtime[0m
+[0;92mAdded new directory to watcher: /Users/zcy/Documents/csv2O/frontend/wailsjs/go[0m
+[0;92mAdded new directory to watcher: /Users/zcy/Documents/csv2O/frontend/wailsjs/runtime[0m
+[0;92mAdded new directory to watcher: /Users/zcy/Documents/csv2O/frontend/wailsjs/go[0m
+[0;92mAdded new directory to watcher: /Users/zcy/Documents/csv2O/frontend/wailsjs/runtime[0m
+[0;92m[Rebuild triggered] files updated[0m
+  • Generating bindings: Done.
+  • No Install command. Skipping.
+  • No Build command. Skipping.
+  • Compiling application: Done.
+  • Packaging application: Done.
+ WARNING  This darwin build contains the use of private APIs. This will not pass Apple's AppStore approval process. Please use it only as a test build for testing and debug purposes.
+
+INF | Serving assets from disk: /Users/zcy/Documents/csv2O/frontend/dist
+ERR | listen tcp 127.0.0.1:34115: bind: address already in use
+[0;92mAdded new directory to watcher: /Users/zcy/Documents/csv2O/frontend/wailsjs/runtime[0m
+[0;92mDevelopment mode exited[0m
+ ♥   If Wails is useful to you or your company, please consider sponsoring the project:
+https://github.com/sponsors/leaanthony

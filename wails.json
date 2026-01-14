@@ -1,0 +1,10 @@
+{
+  "name": "Excel导入工具",
+  "outputfilename": "excel-importer",
+  "frontend:install": "true",
+  "frontend:build": "true",
+  "author": {
+    "name": "Your Name",
+    "email": "your@email.com"
+  }
+}
