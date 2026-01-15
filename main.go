@@ -164,6 +164,13 @@ func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
 
+// UpdateProgress updates the import progress on the frontend
+func (a *App) UpdateProgress(percent int, text string) {
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "progress-update", percent, text)
+	}
+}
+
 // GetExcelHeaders gets the header row from Excel/CSV file
 func (a *App) GetExcelHeaders(filePath string) []string {
 	// Read CSV file and return headers
@@ -342,6 +349,10 @@ func readCsvHeaders(filePath string) ([]string, error) {
 
 // ImportExcel imports data from Excel file to database
 func (a *App) ImportExcel(dbType, host, port, username, password, tableName, filePath, connectionType, serviceName, tnsConnection, truncateChars string) string {
+	// 显示进度条
+	a.UpdateProgress(0, "准备导入...")
+
+	// 根据数据库类型设置不同的批量大小
 	batchSize := 1000
 	enableTruncation := (truncateChars == "true")
 	db, err := connectDatabase(dbType, host, port, username, password, connectionType, serviceName, tnsConnection)
@@ -375,13 +386,26 @@ func (a *App) ImportExcel(dbType, host, port, username, password, tableName, fil
 
 	totalExcelRows = len(rows) - 1
 
-	// 查询表结构
-	query := `SELECT COLUMN_NAME, DATA_TYPE, DATA_LENGTH, NULLABLE
+	// 查询表结构 - 根据数据库类型使用不同的查询
+	var query string
+	var res *sql.Rows
+
+	if strings.ToLower(dbType) == "oracle" {
+		query = `SELECT COLUMN_NAME, DATA_TYPE, DATA_LENGTH, NULLABLE
 				  FROM ALL_TAB_COLUMNS
 				  WHERE TABLE_NAME = UPPER(:1)
 				  ORDER BY COLUMN_ID`
+		res, err = db.Query(query, tableName)
+	} else if strings.ToLower(dbType) == "mysql" {
+		query = `SELECT COLUMN_NAME, DATA_TYPE, COALESCE(CHARACTER_MAXIMUM_LENGTH, 0), IS_NULLABLE
+				  FROM information_schema.COLUMNS
+				  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?
+				  ORDER BY ORDINAL_POSITION`
+		res, err = db.Query(query, tableName)
+	} else {
+		return fmt.Sprintf("不支持的数据库类型: %s", dbType)
+	}
 
-	res, err := db.Query(query, tableName)
 	if err != nil {
 		return fmt.Sprintf("查询表结构失败: %v", err.Error())
 	}
@@ -429,16 +453,27 @@ func (a *App) ImportExcel(dbType, host, port, username, password, tableName, fil
 		return fmt.Sprintf("字段匹配失败: 缺少 %d 个必需字段", len(unmatchedCols))
 	}
 
-	// 准备 SQL 模板
+	// 准备 SQL 模板 - 根据数据库类型使用不同的函数
 	var placeholders []string
 	for i, c := range dbCols {
-		if strings.Contains(c.DataType, "DATE") {
-			placeholders = append(placeholders, fmt.Sprintf("TO_DATE(:%d, 'YYYY-MM-DD HH24:MI:SS')", i+1))
-		} else if enableTruncation && (strings.Contains(c.DataType, "VARCHAR") || strings.Contains(c.DataType, "CHAR")) && c.DataLength > 0 {
-			// 使用Oracle的SUBSTRB函数进行字节级截断
-			placeholders = append(placeholders, fmt.Sprintf("SUBSTRB(:%d, 1, %d)", i+1, c.DataLength))
-		} else {
-			placeholders = append(placeholders, fmt.Sprintf(":%d", i+1))
+		if strings.ToLower(dbType) == "oracle" {
+			if strings.Contains(strings.ToUpper(c.DataType), "DATE") || strings.Contains(strings.ToUpper(c.DataType), "TIMESTAMP") {
+				placeholders = append(placeholders, fmt.Sprintf("TO_DATE(:%d, 'YYYY-MM-DD HH24:MI:SS')", i+1))
+			} else if enableTruncation && (strings.Contains(strings.ToUpper(c.DataType), "VARCHAR") || strings.Contains(strings.ToUpper(c.DataType), "CHAR")) && c.DataLength > 0 {
+				// 使用Oracle的SUBSTRB函数进行字节级截断
+				placeholders = append(placeholders, fmt.Sprintf("SUBSTRB(:%d, 1, %d)", i+1, c.DataLength))
+			} else {
+				placeholders = append(placeholders, fmt.Sprintf(":%d", i+1))
+			}
+		} else if strings.ToLower(dbType) == "mysql" {
+			if strings.Contains(strings.ToUpper(c.DataType), "DATE") || strings.Contains(strings.ToUpper(c.DataType), "DATETIME") || strings.Contains(strings.ToUpper(c.DataType), "TIMESTAMP") {
+				placeholders = append(placeholders, fmt.Sprintf("STR_TO_DATE(?, '%%Y-%%m-%%d %%H:%%i:%%s')"))
+			} else if enableTruncation && (strings.Contains(strings.ToUpper(c.DataType), "VARCHAR") || strings.Contains(strings.ToUpper(c.DataType), "CHAR") || strings.Contains(strings.ToUpper(c.DataType), "TEXT")) && c.DataLength > 0 {
+				// 使用MySQL的SUBSTRING函数进行字符级截断
+				placeholders = append(placeholders, fmt.Sprintf("SUBSTRING(?, 1, %d)", c.DataLength))
+			} else {
+				placeholders = append(placeholders, "?")
+			}
 		}
 	}
 	insertSQL := fmt.Sprintf("INSERT INTO %s VALUES (%s)", tableName, strings.Join(placeholders, ","))
@@ -457,34 +492,96 @@ func (a *App) ImportExcel(dbType, host, port, username, password, tableName, fil
 		}
 
 		tx, _ := db.Begin()
-		args := make([]interface{}, len(dbCols))
-		for i := range columnBuffers {
-			args[i] = columnBuffers[i]
-		}
 
-		_, err := tx.Exec(insertSQL, args...)
-		if err != nil {
-			tx.Rollback()
-
-			// 找到第一个失败的行并立即返回
-			for k := 0; k < count; k++ {
-				singleArgs := make([]interface{}, len(dbCols))
-				for cIdx := range dbCols {
-					singleArgs[cIdx] = columnBuffers[cIdx][k]
-				}
-
-				if _, sErr := db.Exec(insertSQL, singleArgs...); sErr != nil {
-					eLine := startIndex + k + 2
-					// 直接记录错误信息，确保立即显示
-					// 强制等待一小段时间确保日志显示
-					time.Sleep(100 * time.Millisecond)
-					return fmt.Errorf("数据库插入失败 (第%d行): %v", eLine, sErr)
-				}
+		if strings.ToLower(dbType) == "oracle" {
+			// Oracle恢复原来的数组参数传递方式
+			args := make([]interface{}, len(dbCols))
+			for i := range columnBuffers {
+				args[i] = columnBuffers[i]
 			}
 
-			// 如果找不到具体错误行，返回原始错误
-			return err
+			_, err := tx.Exec(insertSQL, args...)
+			if err != nil {
+				//tx.Rollback()
+				// 记录批量插入失败的错误
+				log.Printf("Oracle批量插入失败: %v", err)
+				db.Close()
+				db, err = connectDatabase(dbType, host, port, username, password, connectionType, serviceName, tnsConnection)
+				// 找到第一个失败的行并立即返回（使用单条插入，避免TTC错误）
+				for k := 0; k < count; k++ {
+					singleArgs := make([]interface{}, len(dbCols))
+					for cIdx := range dbCols {
+						singleArgs[cIdx] = columnBuffers[cIdx][k]
+					}
+					_, sErr := db.Exec(insertSQL, singleArgs...)
+					//tx.Rollback()
+					// 使用单条插入语句，不在事务中执行，这样能看到具体的Oracle错误
+					if sErr != nil {
+						eLine := startIndex + k + 2
+						log.Printf("单条插入失败 - 行%d: %v", eLine, sErr)
+						// 移除等待时间，直接返回错误
+						return fmt.Errorf("数据库插入失败 (第%d行): %v", eLine, sErr)
+					}
+				}
+
+				// 如果所有单条插入都成功，说明是批量插入的系统性问题，返回原始错误
+				return fmt.Errorf("批量插入失败，但单条重试都成功，可能存在系统性问题: %v", err)
+			}
+		} else if strings.ToLower(dbType) == "mysql" {
+			// MySQL使用多行INSERT进行批量插入
+			if count == 1 {
+				// 单行插入
+				singleArgs := make([]interface{}, len(dbCols))
+				for cIdx := range dbCols {
+					singleArgs[cIdx] = columnBuffers[cIdx][0]
+				}
+
+				if _, err := tx.Exec(insertSQL, singleArgs...); err != nil {
+					tx.Rollback()
+					eLine := startIndex + 1 + 2
+					time.Sleep(100 * time.Millisecond)
+					return fmt.Errorf("数据库插入失败 (第%d行): %v", eLine, err)
+				}
+			} else {
+				// 构建多行INSERT语句
+				var valuePlaceholders []string
+				var allArgs []interface{}
+
+				for k := 0; k < count; k++ {
+					// 为每一行收集占位符和参数
+					var rowPlaceholders []string
+					for cIdx := range dbCols {
+						rowPlaceholders = append(rowPlaceholders, "?")
+						allArgs = append(allArgs, columnBuffers[cIdx][k])
+					}
+					valuePlaceholders = append(valuePlaceholders, "("+strings.Join(rowPlaceholders, ",")+")")
+				}
+
+				// 构建多行INSERT语句
+				bulkInsertSQL := fmt.Sprintf("INSERT INTO %s VALUES %s", tableName, strings.Join(valuePlaceholders, ","))
+
+				if _, err := tx.Exec(bulkInsertSQL, allArgs...); err != nil {
+					tx.Rollback()
+
+					// 批量插入失败时，逐行尝试找到具体失败的行
+					for k := 0; k < count; k++ {
+						singleArgs := make([]interface{}, len(dbCols))
+						for cIdx := range dbCols {
+							singleArgs[cIdx] = columnBuffers[cIdx][k]
+						}
+
+						if _, sErr := db.Exec(insertSQL, singleArgs...); sErr != nil {
+							eLine := startIndex + k + 2
+							time.Sleep(100 * time.Millisecond)
+							return fmt.Errorf("数据库插入失败 (第%d行): %v", eLine, sErr)
+						}
+					}
+
+					return err
+				}
+			}
 		}
+
 		successCount += count
 		return tx.Commit()
 	}
@@ -499,17 +596,32 @@ func (a *App) ImportExcel(dbType, host, port, username, password, tableName, fil
 			}
 
 			// 处理不同数据类型的转换
-			if strings.Contains(dbCol.DataType, "DATE") && val != "" {
-				t, pErr := tryParseDate(val)
-				if pErr != nil {
-					return fmt.Sprintf("行 %d 日期格式不规范: %s", i+2, val)
+			if strings.ToLower(dbType) == "oracle" {
+				if (strings.Contains(strings.ToUpper(dbCol.DataType), "DATE") || strings.Contains(strings.ToUpper(dbCol.DataType), "TIMESTAMP")) && val != "" {
+					t, pErr := tryParseDate(val)
+					if pErr != nil {
+						return fmt.Sprintf("行 %d 日期格式不规范: %s", i+2, val)
+					}
+					columnBuffers[j] = append(columnBuffers[j], t.Format("2006-01-02 15:04:05"))
+				} else if strings.Contains(strings.ToUpper(dbCol.DataType), "NUMBER") && val == "" {
+					columnBuffers[j] = append(columnBuffers[j], nil)
+				} else {
+					// 对于字符串类型，直接传递原始值，由数据库函数处理截断
+					columnBuffers[j] = append(columnBuffers[j], val)
 				}
-				columnBuffers[j] = append(columnBuffers[j], t.Format("2006-01-02 15:04:05"))
-			} else if strings.Contains(dbCol.DataType, "NUMBER") && val == "" {
-				columnBuffers[j] = append(columnBuffers[j], nil)
-			} else {
-				// 对于字符串类型，直接传递原始值，由Oracle的SUBSTRB函数处理截断
-				columnBuffers[j] = append(columnBuffers[j], val)
+			} else if strings.ToLower(dbType) == "mysql" {
+				if (strings.Contains(strings.ToUpper(dbCol.DataType), "DATE") || strings.Contains(strings.ToUpper(dbCol.DataType), "DATETIME") || strings.Contains(strings.ToUpper(dbCol.DataType), "TIMESTAMP")) && val != "" {
+					t, pErr := tryParseDate(val)
+					if pErr != nil {
+						return fmt.Sprintf("行 %d 日期格式不规范: %s", i+2, val)
+					}
+					columnBuffers[j] = append(columnBuffers[j], t.Format("2006-01-02 15:04:05"))
+				} else if (strings.Contains(strings.ToUpper(dbCol.DataType), "INT") || strings.Contains(strings.ToUpper(dbCol.DataType), "DECIMAL") || strings.Contains(strings.ToUpper(dbCol.DataType), "FLOAT") || strings.Contains(strings.ToUpper(dbCol.DataType), "DOUBLE")) && val == "" {
+					columnBuffers[j] = append(columnBuffers[j], nil)
+				} else {
+					// 对于字符串类型，直接传递原始值，由数据库函数处理截断
+					columnBuffers[j] = append(columnBuffers[j], val)
+				}
 			}
 		}
 
@@ -521,9 +633,17 @@ func (a *App) ImportExcel(dbType, host, port, username, password, tableName, fil
 			for j := range columnBuffers {
 				columnBuffers[j] = columnBuffers[j][:0]
 			}
+
+			// 更新进度
+			processedRows := i + 1
+			percent := int(float64(processedRows) / float64(totalExcelRows) * 100)
+			progressText := fmt.Sprintf("已处理 %d/%d 行 (%.1f%%)", processedRows, totalExcelRows, float64(processedRows)/float64(totalExcelRows)*100)
+			a.UpdateProgress(percent, progressText)
 		}
 	}
 
+	// 导入完成
+	a.UpdateProgress(100, fmt.Sprintf("导入完成: %d/%d 行", len(dataRows), totalExcelRows))
 	return fmt.Sprintf("excel行数:%d,成功导入:%d", totalExcelRows, len(dataRows))
 }
 

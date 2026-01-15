@@ -19,3 +19,5 @@ export function SaveConfig(arg1:main.DBConfig):Promise<string>;
 export function SelectExcelFile():Promise<string>;
 
 export function TestDatabaseConnection(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:string,arg7:string,arg8:string):Promise<string>;
+
+export function UpdateProgress(arg1:number,arg2:string):Promise<void>;

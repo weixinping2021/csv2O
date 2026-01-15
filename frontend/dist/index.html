@@ -489,6 +489,12 @@
         border-left: 4px solid #667eea;
       }
 
+      /* 右侧面板的进度框样式调整 */
+      .right-panel .progress-container {
+        margin: 15px 25px 0 25px;
+        padding: 12px;
+      }
+
       .progress-bar {
         width: 100%;
         height: 8px;
@@ -708,6 +714,10 @@
         .comparison-section {
           padding: 15px;
         }
+
+        .right-panel .progress-container {
+          margin: 15px;
+        }
       }
     </style>
   </head>
@@ -842,16 +852,6 @@
               </button>
             </div>
 
-            <div
-              class="progress-container"
-              id="progressContainer"
-              style="display: none"
-            >
-              <div class="progress-text" id="progressText">准备导入...</div>
-              <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -873,6 +873,17 @@
                 <div class="log-entry log-info">
                   [INFO] 应用已启动，等待用户操作...
                 </div>
+              </div>
+            </div>
+
+            <div
+              class="progress-container"
+              id="progressContainer"
+              style="display: none"
+            >
+              <div class="progress-text" id="progressText">准备导入...</div>
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
               </div>
             </div>
           </div>
@@ -1603,6 +1614,13 @@
       window.addEventListener("load", function () {
         addLog("界面初始化完成", "success");
         loadConfig();
+
+        // 监听后端进度更新事件
+        if (window.runtime && window.runtime.EventsOn) {
+          window.runtime.EventsOn("progress-update", function(percent, text) {
+            updateProgress(percent, text);
+          });
+        }
       });
 
       // 错误处理
